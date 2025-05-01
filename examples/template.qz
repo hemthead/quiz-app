@@ -1,0 +1,91 @@
+# FILE-LEVEL OPTIONS
+# whether to randomly order questions (default false)
+;q-random-order: true
+
+# whether to randomly order answer options (default false)
+;a-random-order: true
+
+# whether answers are case sensitive (typing) (default false)
+;case-sensitive: false
+
+# whether to reveal correct answer after question(s) attempted (also shows
+# score) (default true)
+;reveal-answers: true
+
+# time given to take quiz (0 for unlimited) (default 0)
+;time: 0
+
+;time-per-question: 1
+# point value of questions (default 1)
+;value: 1
+
+---
+
+# QUESTION-SPECIFIC CONFIG (dictionary)
+# case-sensitive: bool (whether answer is case-sensitive)
+# value: float (point value of question)
+# part: int.int (identifies multi-part questions)
+# reveal-answers: bool (reveals answers after entry)
+# a-random-order: bool (randomly orders answers)
+# justified: bool (ask user for justification)
+# dynamic: bool (queue inverse of question to be asked later, i.e.: ask answer
+#   input will be logged)
+# review: bool (if missed, review question at end and allow user to decide if
+#   their answer was correct, useful for typed-answer, gets flagged in log)
+
+# QUESTIONS
+
+;case-sensitive: true
+? Type-Answer (user types answer)
++ correct
+
+;value: 2
+? Multiple-Choice (user selects answer)
+- incorrect
+- incorrect
++ correct
+- incorrect
+
+? Question that is so long
+it loops around
+- incorrect choice that is
+so long it loops around
++ correct choice that is so
+long it loops around
+- incorrect
+
+#;answer-values: 1,2,3
+#;mc-answers-add-up: true (each answer is worth <value> points)
+;partial-credit: true
+? Multiple-Answer
++ correct
+- incorrect
++ correct
++ correct
+- incorrect
+
+#MULTI-PART NOT YET IMPLEMENTED, KEEP SEQUENTIAL AND TURN RANDOM ORDER OFF
+; part: mp.1
+? Multi-Part 1
++ correct
+
+; part: mp.2
+? Multi-Part 2
++ correct
+- incorrect
+- incorrect
+
+# UNDER CONSIDERATION
+# question specific config ';<config>\n'
+# case sensitivity
+# prompt for explanation
+# question value
+#
+#
+# True/False shorthand
+# [T|F]: true/false statement
+# ; tf:[true|false]
+#
+# multi-part questions
+# ; part: <ident>.<part>
+# ex. ;part: 0.1
