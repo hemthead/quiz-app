@@ -1,5 +1,9 @@
 use std::fs;
+use std::io::stdin;
+
+use quiz_app::Quiz;
 
 fn main() {
-    let quiz: quiz_app::Quiz = std::fs::read_to_string("working.qz").unwrap().parse().unwrap();
+    let quiz: Quiz = fs::read_to_string("examples/working.qz").unwrap().parse().unwrap();
+    let _ = quiz.take().unwrap();
 }

@@ -1,9 +1,9 @@
 # FILE-LEVEL OPTIONS
 # whether to randomly order questions (default false)
-;q-random-order: true
+;random-q-order: true
 
 # whether to randomly order answer options (default false)
-;a-random-order: true
+;random-a-order: true
 
 # whether answers are case sensitive (typing) (default false)
 ;case-sensitive: false
