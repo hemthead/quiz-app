@@ -30,13 +30,40 @@ The config language is rather basic and the file structure consits of the follow
     - One of the answer identifiers is met on a new line: `-` for incorrect answers and `+` for correct answers
     - (Note that for questions with a single answer it will be assuemed that that is the intended correct answer.)
 
-All config options are explained in the template file, as well as multiple examples of how to format questions.
+All config options are explained in the template file, as well as multiple examples of
+how to format questions.
+
+#### Quiz Errors
+
+When developing a quiz you're liable to run into some inconvenient errors. Perhaps you
+forgot the name of a config option or neglected to put a `?` delimiter before your
+question. In this case, the program will fail to read the quiz and print the error before
+exiting. In the future, I plan to include line-numbers and other context in this printed
+output, but currently only the name of the error is printed out.
+
+There are a multitude of possible errors, but most have names that are (hopefully) self
+explanatory as to what the problem is. The following is a table of errors that may result
+from improper quiz formatting/syntax.
+
+| Error | Description |
+| --- | --- |
+| `QuestionErr(MissingDelimiter)` | The parser sees a config block that has an invalid config line, you probably meant to ask a question and forgot the `?` delimiter. |
+| `QuestionErr(NoCorrectAnswer)` | The parser sees a question that has no correct answer. |
+| `QuestionErr(OnlyConfig)` | The parser sees a block that has no question, but also probably wasn't intended to be a question, i.e. a comment block. This error will never show up as comment blocks are allowed. |
+| `QuestionErr(ConfigErr(...))` | Refer to the following `ConfigErr`s. |
+| `ConfigErr(InvalidOption)` | The parser sees an invalid config option name (you tried to set an option that doesn't exist). |
+| `ConfigErr(InvalidValue(...))` | The parser sees a config option with an unparseable value (ex. you set something like `value: true`, which doesn't make sense). |
+| `ConfigErr(MissingDelimiter)` | The parser sees a config line that is missing the `;` or `#` delimiter. |
+
+If the errors seem unhelpful, that's because they are right now. I am working on a revamp
+of the error system that will make everything much simpler and user-friendly!
 
 ### Taking Quizzes
 
-Taking quizzes is as simple as running the executable with the path to the quiz's file as the first argument 
-(ex. `$ ./quiz_app examples/template.qz` from a shell in this directory).
+Taking quizzes is as simple as running the executable with the path to the quiz's file as
+the first argument (ex. `$ ./quiz_app examples/template.qz` from a shell in this directory).
 
 ## Issues
 
-Please report any issues you have either directly to me or through github issues. I'll try to address them as quickly as possible.
+Please report any issues you have either directly to me or through github issues. I'll try to
+address them as quickly as possible.
