@@ -344,7 +344,7 @@ impl Quiz {
                 input.read_line(&mut user_in)?;
 
                 let mut user_answer = String::new();
-                while user_in != "\n" {
+                while !user_in.trim().is_empty() {
                     user_answer = user_in.clone();
                     
                     user_in.clear();
@@ -406,7 +406,7 @@ impl Quiz {
 
             let mut user_answers = vec![];
 
-            while user_in != "\n" {
+            while !user_in.trim().is_empty() {
                 user_answers = user_in
                     .split(['.', ' ', ';', ','])
                     .map(|s| s.trim())
