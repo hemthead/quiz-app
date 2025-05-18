@@ -15,8 +15,8 @@
 # config: type [default] (description)
 #
 # tutorial: bool [true] (whether to present quiz-taking tutorial at start of quiz)
-# case-sensitive: bool (whether answer is case-sensitive)
-# value: float (point value of question)
+# case-sensitive: bool [false] (whether answer is case-sensitive)
+# value: float [1.0] (point value of question)
 # ordered-answers: bool [false] (Whether answers have set order; i.e. setting to false
 #   would randomize answer order when presented)
 # ordered: bool [true] (should the question be asked in order relative to other ordered
