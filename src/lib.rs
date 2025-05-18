@@ -200,12 +200,12 @@ impl Question {
 
             match &to_parse[0..1] {
                 "+" => question.answers.push(Answer::Correct(
-                    to_parse[1..].trim().replace("\n", " ")
+                    to_parse[1..].trim().replace("\r\n", " ").replace("\n", " ")
                 )),
                 "-" => question.answers.push(Answer::Incorrect(
-                    to_parse[1..].trim().replace("\n", " ")
+                    to_parse[1..].trim().replace("\r\n", " ").replace("\n", " ")
                 )),
-                _ => question.title = to_parse.trim().replace("\n", " "),
+                _ => question.title = to_parse.trim().replace("\r\n", " ").replace("\n", " "),
             }
         }
 
@@ -263,7 +263,10 @@ impl std::str::FromStr for Quiz {
         };
 
         // Questions are separated by newlines
-        for q_text in quiz_text.split("\n\n").filter(|s| !s.is_empty()) {
+        for q_text in quiz_text
+            .split("\r\n\r\n") // handle windows blank lines
+            .flat_map(|text| text.split("\n\n")) // handle normal linux blank lines
+            .filter(|s| !s.is_empty()) {
             quiz.questions.push(
                 match Question::parse_str(&quiz.config, q_text) {
                     Err(QuestionErr::OnlyConfig) => continue, // don't push comment/config blocks
