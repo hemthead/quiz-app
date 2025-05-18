@@ -1,5 +1,5 @@
-use std::io::stdin;
-use std::io;
+use std::io::{self, Write, stdin, stdout};
+use std::hash::{BuildHasher, Hasher, RandomState};
 
 #[derive(Debug)]
 pub enum ConfigValueParseError {
@@ -57,27 +57,28 @@ impl From<std::str::ParseBoolError> for ConfigErr {
 pub struct Config {
     value: f32,
     case_sensitive: bool,
-    random_q_order: bool,
-    random_a_order: bool,
+    ordered: bool,
+    ordered_answers: bool,
+    tutorial: bool,
 }
 impl std::default::Default for Config {
     fn default() -> Self {
         Self {
             value: 1.0,
             case_sensitive: false,
-            random_q_order: false,
-            random_a_order: true,
+            ordered: true,
+            ordered_answers: true,
+            tutorial: true,
         }
     }
 }
 
 impl Config {
-    ///
     fn parse_str(base_config: &Config, config_str: &str) -> Result<Self, ConfigErr> {
         let mut config = base_config.clone();
 
         for cfg in config_str.lines().map(|l| l.trim()) {
-            if cfg.starts_with('#') { continue; } // skip comments
+            if cfg.starts_with('#') || cfg.is_empty() { continue; } // skip comments and blanks
             
             if !cfg.starts_with(';') { return Err(ConfigErr::MissingDelimiter) }
 
@@ -95,8 +96,8 @@ impl Config {
             match &name[..] {
                 "value" => config.value = value.parse()?,
                 "casesensitive" => config.case_sensitive = value.parse()?,
-                "randomqorder" => config.random_q_order = value.parse()?,
-                "randomaorder" => config.random_a_order = value.parse()?,
+                "ordered" => config.ordered = value.parse()?,
+                "orderedanswers" => config.ordered_answers = value.parse()?,
                 _ => return Err(ConfigErr::InvalidOption),
             };
         };
@@ -111,6 +112,7 @@ impl std::str::FromStr for Config {
     }
 }
 
+#[derive(Debug)]
 pub enum Answer {
     Correct(String),
     Incorrect(String),
@@ -140,6 +142,8 @@ pub enum QuestionErr {
     ConfigErr(ConfigErr),
     /// Question has no correct answer
     NoCorrectAnswer,
+    /// There is only config/comments, this is likely a comment block
+    OnlyConfig,
 }
 impl From<ConfigErr> for QuestionErr {
     fn from(value: ConfigErr) -> Self {
@@ -161,7 +165,8 @@ impl Question {
                     ("", q_text[..].trim_start_matches('?'))
                 // else, everything is config/comment
                 } else {
-                    (&q_text[..], "") // questions MUST start with `?` marker
+                    return Err(QuestionErr::OnlyConfig);
+                    //(&q_text[..], "") // questions MUST start with `?` marker
                 }
             },
             //None => ("",q_text[..].trim_start_matches('?')), // makes comment blocks harder
@@ -182,7 +187,6 @@ impl Question {
         // parse answers
         let mut remaining = q_text;
         while !remaining.is_empty() {
-
             let part_end = std::cmp::min(
                 // each answer starts with \n(+|-), pick the closest one
                 std::cmp::min(
@@ -195,9 +199,13 @@ impl Question {
             (to_parse, remaining) = remaining.split_at(part_end);
 
             match &to_parse[0..1] {
-                "+" => question.answers.push(Answer::Correct(to_parse[1..].trim().to_owned())),
-                "-" => question.answers.push(Answer::Incorrect(to_parse[1..].trim().to_owned())),
-                _ => question.title = to_parse.trim().to_owned(),
+                "+" => question.answers.push(Answer::Correct(
+                    to_parse[1..].trim().replace("\n", " ")
+                )),
+                "-" => question.answers.push(Answer::Incorrect(
+                    to_parse[1..].trim().replace("\n", " ")
+                )),
+                _ => question.title = to_parse.trim().replace("\n", " "),
             }
         }
 
@@ -256,7 +264,14 @@ impl std::str::FromStr for Quiz {
 
         // Questions are separated by newlines
         for q_text in quiz_text.split("\n\n").filter(|s| !s.is_empty()) {
-            quiz.questions.push(Question::parse_str(&quiz.config, q_text)?);
+            quiz.questions.push(
+                match Question::parse_str(&quiz.config, q_text) {
+                    Err(QuestionErr::OnlyConfig) => continue, // don't push comment/config blocks
+                    // as questions
+                    
+                    other => other?, // else just return errors / add the question
+                }
+            );
         }
         
         Ok(quiz)
@@ -267,25 +282,77 @@ impl Quiz {
     pub fn take(&self) -> io::Result<f32> {
         let input = stdin();
 
+        if self.config.tutorial {
+            println!("\n\
+                Hello, welcome to your quiz!\n\
+                I'll ask questions and you give the answers; sound good?\n\
+            ");
+
+            println!("\
+                Questions that don't present options expect you to type your answer; \
+                questions that present options with parenthesis expect a single answer \
+                (type the number of the answer); and questions that present options with \
+                square brackets expect multiple answers (separate them with spaces, \
+                semicolons, periods, or commas).\n\
+            ");
+
+            println!("\
+                Once you've typed your answer, press enter twice to submit. If you made a\
+                mistake, don't worry! Only pressing enter once allows you to restart the \
+                answering process with a new answer, no sweat!\n\
+            ");
+
+            println!("Your quiz starts now!\n---");
+        }
+
         let mut score = 0.0;
         let mut total_score = 0.0;
 
-        let questions = &self.questions;
+        let mut questions = Vec::new();
+        questions.reserve_exact(self.questions.len());
+
+        let mut ordered_questions = vec![];
+
+        // set the order that questions will be asked in
+        for question in &self.questions {
+            if question.config.ordered {
+                ordered_questions.push(question);
+            } else {
+                questions.push(question);
+            }
+        }
+
+        // randomly shuffle questions that desire to be randomly shuffled
+        shuffle(&mut questions);
+
+        // append questions that desire to be presented in order (multi-part questions, etc)
+        questions.append(&mut ordered_questions);
+
         for question in questions {
             total_score += question.config.value;
 
             // ask question
-            println!("{0}", question.title);
+            println!("\n{0}", question.title);
 
             // prep user input
             let mut user_in = String::new();
 
             // handle typed-answer questions
             if question.answers.len() == 1 {
+                print!("\nYour Answer: ");
+                stdout().flush()?;
                 input.read_line(&mut user_in)?;
 
+                let mut user_answer = String::new();
+                while user_in != "\n" {
+                    user_answer = user_in.clone();
+                    
+                    user_in.clear();
+                    input.read_line(&mut user_in)?;
+                }
+
                 if !question.config.case_sensitive {
-                    user_in = user_in.to_lowercase()
+                    user_answer = user_answer.to_lowercase()
                 }
 
                 let ans = match &question.answers[0] {
@@ -293,7 +360,7 @@ impl Quiz {
                     Answer::Incorrect(ans) => ans,
                 };
 
-                if ans == &user_in {
+                if ans == user_answer.trim() {
                     score += question.config.value;
                 }
 
@@ -308,7 +375,11 @@ impl Quiz {
 
             let single_correct = num_correct_answers == 1;
 
-            let answers = &question.answers;
+            let mut answers: Vec<&Answer> = question.answers.iter().collect();
+
+            if !question.config.ordered_answers {
+                shuffle(&mut answers);
+            }
 
             let mut correct_answer_indicies = vec![];
 
@@ -326,26 +397,29 @@ impl Quiz {
                 }
             }
 
+            print!("\nYour Answer{0}: ", if single_correct {""} else {"s"});
+            stdout().flush()?;
+
+            correct_answer_indicies.sort();
+
             input.read_line(&mut user_in)?;
 
             let mut user_answers = vec![];
 
-            while user_in != "n\n" {
+            while user_in != "\n" {
                 user_answers = user_in
                     .split(['.', ' ', ';', ','])
                     .map(|s| s.trim())
                     .filter(|s| !s.is_empty())
                     .filter_map(|s| s.parse::<usize>().ok())
-                    .collect()
-                ;
+                    .collect();
+                user_answers.sort();
                 
                 user_in.clear();
                 input.read_line(&mut user_in)?;
             }
 
-            println!("input: {user_answers:?}");
-
-            if user_answers.sort() == correct_answer_indicies.sort() {
+            if user_answers == correct_answer_indicies {
                 score += question.config.value;
             }
 
@@ -362,6 +436,21 @@ impl Quiz {
             //}
         };
 
+        println!("Final Score: {score}/{total_score}");
+
         Ok(score / total_score)
     }
+}
+
+fn shuffle<T>(vec: &mut [T]) {
+    let n = vec.len();
+    if n == 0 { return }
+    for i in 0..(n - 1) {
+        let j = rand() % (n - i) + i;
+        vec.swap(i, j);
+    }
+}
+
+fn rand() -> usize {
+    RandomState::new().build_hasher().finish() as usize
 }

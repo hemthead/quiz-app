@@ -1,44 +1,61 @@
-# FILE-LEVEL OPTIONS
-# whether to randomly order questions (default false)
-;random-q-order: true
+# All config options specified at the file level (before the `---`) will be treated as
+# defaults for following questions
+#
+# Question specific conifig is placed on the lines preceding the question
+#
+# All config lines *must* start with a semicolon delimeter `;`
+#
+# Config lines starting with `#` are treated as comments (comments are valid where config
+# is valid; i.e. not within questions)
+#
+# Config options consist of one or more words `directlyjoined`, `kebab-cased`, `snake_cased`, or
+# `space separated` (any of these are valid), followed by a value
+#
+# CONFIG DICTIONARY
+# config: type [default] (description)
+#
+# tutorial: bool [true] (whether to present quiz-taking tutorial at start of quiz)
+# case-sensitive: bool (whether answer is case-sensitive)
+# value: float (point value of question)
+# ordered-answers: bool [false] (Whether answers have set order; i.e. setting to false
+#   would randomize answer order when presented)
+# ordered: bool [true] (should the question be asked in order relative to other ordered
+#   questions; i.e. setting to false would randomize when this question is presented)
+#
+# UNSUPPORTED CONFIG OPTIONS UNDER CONSIDERATION, please leave feedback!
+# justified: bool [false] (ask user for justification)
+# dynamic: bool [false] (queue inverse of question to be asked later, i.e.: ask answer
+#   input will be logged)
+# review: bool [false] (if missed, review question at end and allow user to decide if
+#   their answer was correct, useful for typed-answer, gets flagged in log)
 
-# whether to randomly order answer options (default false)
-;random-a-order: true
+# FILE-LEVEL CONFIG
+# set quiz to be unordered with randomized answer order, case insensitive answers, and
+# 1pt per question
 
-# whether answers are case sensitive (typing) (default false)
+;ordered: false
+;ordered-answers: false
+
 ;case-sensitive: false
-
-# whether to reveal correct answer after question(s) attempted (also shows
-# score) (default true)
-;reveal-answers: true
-
-# time given to take quiz (0 for unlimited) (default 0)
-;time: 0
-
-;time-per-question: 1
-# point value of questions (default 1)
 ;value: 1
+
+# note that this config could look like
+# ; ORDERED:false
+# ; O R DER-ED-ANSWERS   : false
+# ; CaseSensitive: false
+# ; value :1
+# etc. and everything would work, as case and separating characters are ignored
 
 ---
 
-# QUESTION-SPECIFIC CONFIG (dictionary)
-# case-sensitive: bool (whether answer is case-sensitive)
-# value: float (point value of question)
-# part: int.int (identifies multi-part questions)
-# reveal-answers: bool (reveals answers after entry)
-# a-random-order: bool (randomly orders answers)
-# justified: bool (ask user for justification)
-# dynamic: bool (queue inverse of question to be asked later, i.e.: ask answer
-#   input will be logged)
-# review: bool (if missed, review question at end and allow user to decide if
-#   their answer was correct, useful for typed-answer, gets flagged in log)
-
 # QUESTIONS
 
+# specify that this question should be case-sensitive
 ;case-sensitive: true
 ? Type-Answer (user types answer)
 + correct
 
+# make this question exra valuable
 ;value: 2
 ? Multiple-Choice (user selects answer)
 - incorrect
@@ -46,6 +63,8 @@
 + correct
 - incorrect
 
+# Like markdown, these lines will collapse into a single paragraph/line. Each newline gets
+# replaced with a space, so don't forget to remove trailing spaces if you want good format
 ? Question that is so long
 it loops around
 - incorrect choice that is
@@ -54,9 +73,9 @@ so long it loops around
 long it loops around
 - incorrect
 
-#;answer-values: 1,2,3
-#;mc-answers-add-up: true (each answer is worth <value> points)
-;partial-credit: true
+# Multiple answer questions will display with square brackets to showcase that there
+# are multiple answers
+# I will NOT be adding an evil config that hides this behavior, that's despicable
 ? Multiple-Answer
 + correct
 - incorrect
@@ -64,28 +83,20 @@ long it loops around
 + correct
 - incorrect
 
-#MULTI-PART NOT YET IMPLEMENTED, KEEP SEQUENTIAL AND TURN RANDOM ORDER OFF
-; part: mp.1
+# Multiple part questions can be set to ordered so that they appear sequentially
+# (ordered questions will appear after all randomly shuffled questions)
+;ordered: true
 ? Multi-Part 1
 + correct
 
-; part: mp.2
+# This question will appear directly after the previous one
+;ordered: true
 ? Multi-Part 2
 + correct
 - incorrect
 - incorrect
 
 # UNDER CONSIDERATION
-# question specific config ';<config>\n'
-# case sensitivity
-# prompt for explanation
-# question value
-#
-#
 # True/False shorthand
 # [T|F]: true/false statement
 # ; tf:[true|false]
-#
-# multi-part questions
-# ; part: <ident>.<part>
-# ex. ;part: 0.1
