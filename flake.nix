@@ -25,7 +25,7 @@
             rustup
             gdb
             pkgsCross.mingwW64.buildPackages.gcc
-            #pkgsCross.mingwW64.windows.pthreads # uncomment this line when cross-compiling to windows
+            pkgsCross.mingwW64.windows.pthreads # uncomment this line when cross-compiling to windows
           ];
 
           RUSTC_VERSION = overrides.toolchain.channel;

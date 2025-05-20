@@ -323,7 +323,6 @@ impl Quiz {
         }
 
         let mut score = 0.0;
-        let mut total_score = 0.0;
 
         let mut questions = Vec::new();
         questions.reserve_exact(self.questions.len());
@@ -346,8 +345,6 @@ impl Quiz {
         questions.append(&mut ordered_questions);
 
         for question in questions {
-            total_score += question.config.value;
-
             // ask question
             println!("\n{0}", question.title);
 

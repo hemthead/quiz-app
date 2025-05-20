@@ -48,7 +48,7 @@ fn main() -> ExitCode {
     };
     
     println!("\n\nQuiz finished!");
-    println!("Your score: {score:.2}/{0} ({1:.1}%)", quiz.total_score, score*100.0/quiz.total_score);
+    println!("Your score: {score:.0}/{0} ({1:.0}%)", quiz.total_score, score*100.0/quiz.total_score);
     print!("Press enter to exit");
     _ = stdout().flush();
 
