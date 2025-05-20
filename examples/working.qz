@@ -1,50 +1,14 @@
-# All config options specified at the file level (before the `---`) will be treated as
-# defaults for following questions
-#
-# Question specific conifig is placed on the lines preceding the question
-#
-# All config lines *must* start with a semicolon delimeter `;`
-#
-# Config lines starting with `#` are treated as comments (comments are valid where config
-# is valid; i.e. not within questions)
-#
-# Config options consist of one or more words `directlyjoined`, `kebab-cased`, `snake_cased`, or
-# `space separated` (any of these are valid), followed by a value
-#
-# CONFIG DICTIONARY
-# config: type [default] (description)
-#
-# tutorial: bool [true] (whether to present quiz-taking tutorial at start of quiz)
-# case-sensitive: bool (whether answer is case-sensitive)
-# value: float (point value of question)
-# ordered-answers: bool [false] (Whether answers have set order; i.e. setting to false
-#   would randomize answer order when presented)
-# ordered: bool [true] (should the question be asked in order relative to other ordered
-#   questions; i.e. setting to false would randomize when this question is presented)
-#
-# UNSUPPORTED CONFIG OPTIONS UNDER CONSIDERATION, please leave feedback!
-# justified: bool [false] (ask user for justification)
-# dynamic: bool [false] (queue inverse of question to be asked later, i.e.: ask answer
-#   input will be logged)
-# review: bool [false] (if missed, review question at end and allow user to decide if
-#   their answer was correct, useful for typed-answer, gets flagged in log)
-
-# FILE-LEVEL CONFIG
-# set quiz to be unordered with randomized answer order, case insensitive answers, and
-# 1pt per question
+; tutorial: true
 
 ;ordered: false
 ;ordered-answers: false
 
 ;case-sensitive: false
-;value: 1
+;value: 0.01
 
-# note that this config could look like
-# ; ORDERED:false
 # ; O R DER-ED-ANSWERS   : false
 # ; CaseSensitive: false
 # ; value :1
-# etc. and everything would work, as case and separating characters are ignored
 
 ---
 

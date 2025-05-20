@@ -98,6 +98,7 @@ impl Config {
                 "casesensitive" => config.case_sensitive = value.parse()?,
                 "ordered" => config.ordered = value.parse()?,
                 "orderedanswers" => config.ordered_answers = value.parse()?,
+                "tutorial" => config.tutorial = value.parse()?,
                 _ => return Err(ConfigErr::InvalidOption),
             };
         };
@@ -225,8 +226,14 @@ impl std::str::FromStr for Question {
 }
 
 pub struct Quiz {
+    /// The File/Quiz -level config
     pub config: Config,
+
+    /// The questions in the quiz
     pub questions: Vec<Question>,
+
+    /// Total point value of all questions combined / max-score
+    pub total_score: f32,
 }
 
 #[derive(Debug)]
@@ -260,6 +267,7 @@ impl std::str::FromStr for Quiz {
         let mut quiz = Quiz {
             config,
             questions: Vec::new(),
+            total_score: 0.0,
         };
 
         // Questions are separated by newlines
@@ -275,6 +283,11 @@ impl std::str::FromStr for Quiz {
                     other => other?, // else just return errors / add the question
                 }
             );
+        }
+
+        // add up the total score of all questions
+        for question in quiz.questions.iter() {
+            quiz.total_score += question.config.value;
         }
         
         Ok(quiz)
@@ -300,9 +313,10 @@ impl Quiz {
             ");
 
             println!("\
-                Once you've typed your answer, press enter twice to submit. If you made a\
-                mistake, don't worry! Only pressing enter once allows you to restart the \
-                answering process with a new answer, no sweat!\n\
+                Once you've typed your answer, press enter twice to submit. If you made a \
+                mistake, don't worry! Pressing enter only once allows you to restart the \
+                answering process with a new answer (the last non-empty line is used), no \
+                sweat!\n\
             ");
 
             println!("Your quiz starts now!\n---");
@@ -439,9 +453,7 @@ impl Quiz {
             //}
         };
 
-        println!("Final Score: {score}/{total_score}");
-
-        Ok(score / total_score)
+        Ok(score)
     }
 }
 
