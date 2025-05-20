@@ -365,14 +365,16 @@ impl Quiz {
                     input.read_line(&mut user_in)?;
                 }
 
-                if !question.config.case_sensitive {
-                    user_answer = user_answer.to_lowercase()
-                }
-
-                let ans = match &question.answers[0] {
+                let mut ans = match &question.answers[0] {
                     Answer::Correct(ans) => ans,
-                    Answer::Incorrect(ans) => ans,
-                };
+                    Answer::Incorrect(ans) => unreachable!(), // this question would fail to parse
+                    // with `NoCorrectAnswer`
+                }.to_owned();
+
+                if !question.config.case_sensitive {
+                    user_answer = user_answer.to_lowercase();
+                    ans = ans.to_lowercase();
+                }
 
                 if ans == user_answer.trim() {
                     score += question.config.value;
