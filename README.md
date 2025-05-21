@@ -14,6 +14,31 @@ desire, my friend!
 
 Ok, enough with the marketing...
 
+## Installation
+
+### Windows
+
+Download the executable from a release and double click! (or you can always compile for
+yourself if you have rust set up) A terminal window will automatically pop up and ask 
+for the path to a quiz to take.
+
+If you want, you can set `.qz` files to open with the executable by right clicking a `.qz`
+file, selecting `Open With` and browsing to the executable. Then there's a checkbox to set
+it as default.
+
+### Linux
+
+Download the executable and run from a terminal emulator. The first and only argument
+should be the path to the quiz to take (or you can forgoe any arguments to be prompted).
+
+Consult your file-manager for how to set the app as the default way to open `.qz` files.
+You'll likely need to set a custom command such as `<terminal-emulator> <path-to-quiz-app>`.
+
+#### NixOS
+
+By virtue of it being my OS, NixOS (and nix flake users in-gen.) gets special treatment. You
+can download the standalone executable, or use nix flakes to download/install/run the program.
+
 ## Usage
 
 ### Developing Quizzes

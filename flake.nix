@@ -1,4 +1,6 @@
 {
+  description = "A simple quiz taking application";
+
   inputs = {
     fenix.url = "github:nix-community/fenix";
     flake-utils.url = "github:numtide/flake-utils";
@@ -136,6 +138,10 @@
 
         devShell = pkgs.mkShell (
           {
+            nativeBuildInputs = with pkgs; [
+              rust-analyzer
+            ];
+
             inputsFrom = with packages; [ x86_64-unknown-linux-musl x86_64-pc-windows-gnu ];
             CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
           } // cargoConfig

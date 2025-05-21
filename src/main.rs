@@ -16,7 +16,10 @@ fn main() -> ExitCode {
             let mut path = String::new();
             match stdin().read_line(&mut path) {
                 Ok(_) => path.trim().to_owned(),
-                Err(_) => return ExitCode::FAILURE,
+                Err(e) => {
+                    eprintln!("Couldn't read your input: {e}");
+                    return confirm_exit(ExitCode::FAILURE);
+                }
             }
         },
     };
@@ -27,7 +30,7 @@ fn main() -> ExitCode {
         Ok(s) => s,
         Err(e) => {
             eprintln!("Could not read quiz file: {e}");
-            return ExitCode::FAILURE;
+            return confirm_exit(ExitCode::FAILURE);
         }
     };
 
@@ -35,7 +38,7 @@ fn main() -> ExitCode {
         Ok(quiz) => quiz,
         Err(e) => {
             eprintln!("Could not parse quiz: {e:?}");
-            return ExitCode::FAILURE;
+            return confirm_exit(ExitCode::FAILURE);
         }
     };
 
@@ -43,17 +46,22 @@ fn main() -> ExitCode {
         Ok(score) => score,
         Err(e) => {
             eprintln!("Could not take quiz: {e:?}");
-            return ExitCode::FAILURE;
+            return confirm_exit(ExitCode::FAILURE);
         }
     };
     
     println!("\n\nQuiz finished!");
-    println!("Your score: {score:.0}/{0} ({1:.0}%)", quiz.total_score, score*100.0/quiz.total_score);
+    println!("Your score: {score:.0}/{0:.0} ({1:.0}%)", quiz.total_score, score*100.0/quiz.total_score);
+    
+    return confirm_exit(ExitCode::SUCCESS);
+}
+
+fn confirm_exit(code: ExitCode) -> ExitCode {
     print!("Press enter to exit");
     _ = stdout().flush();
 
     // wait for ack, then exit
     _ = stdin().read(&mut[]);
 
-    ExitCode::SUCCESS
+    return code;
 }
