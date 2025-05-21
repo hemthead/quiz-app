@@ -1,4 +1,5 @@
 use std::io::{self, Write, stdin, stdout};
+
 use std::hash::{BuildHasher, Hasher, RandomState};
 
 #[derive(Debug)]
