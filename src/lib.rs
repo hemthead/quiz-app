@@ -14,7 +14,7 @@ impl ConfigValue {
 }
 */
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ConfigValueParseError {
     ParseIntError(std::num::ParseIntError),
     ParseFloatError(std::num::ParseFloatError),
@@ -56,7 +56,7 @@ impl From<std::str::ParseBoolError> for ConfigValueParseError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ConfigError {
     /// the string that failed to parse
     context: String,
@@ -83,7 +83,7 @@ impl std::error::Error for ConfigError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ConfigErrorKind {
     /// The option specified in the config is invalid
     InvalidOption,
@@ -109,7 +109,7 @@ impl From<ConfigValueParseError> for ConfigErrorKind {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Config {
     value: f32,
     case_sensitive: bool,
@@ -197,12 +197,13 @@ impl std::str::FromStr for Config {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Answer {
     Correct(String),
     Incorrect(String),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Question {
     title: String,
     answers: Vec<Answer>,
@@ -219,7 +220,7 @@ impl Question {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct QuestionError {
     kind: QuestionErrorKind,
     lines_parsed: usize,
@@ -241,7 +242,7 @@ impl std::error::Error for QuestionError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum QuestionErrorKind {
     /// No `?` delimiter was found marking the start of a question
     /// This may be either a comment block or improperly formmated question
@@ -291,7 +292,9 @@ impl Question {
         let (config_str, q_text) = match q_text.split_once("\n?") {
             Some((cfg, qz)) => {
                 lines_parsed = 1; // to account for the newline we just got rid of
-                (cfg, qz.trim())
+                (cfg, qz.trim()) // this line here makes for some interesting behavior when there's
+                // no question but also a `?` and the config errors with missing delimiter, but I
+                // kinda prefer that to no error
             },
             None => {
                 // if text starts with `?` (no newline) it's just a question with no config
@@ -387,6 +390,7 @@ impl std::str::FromStr for Question {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Quiz {
     /// The File/Quiz -level config
     pub config: Config,
@@ -398,7 +402,7 @@ pub struct Quiz {
     pub total_score: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct QuizError {
     kind: QuizErrorKind,
     /// note that lines_parsed is *not* the current line / error line, it's the number of the last
@@ -421,7 +425,7 @@ impl std::error::Error for QuizError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum QuizErrorKind {
     ConfigError(ConfigError),
     QuestionError(QuestionError),
@@ -451,9 +455,14 @@ impl std::str::FromStr for Quiz {
     type Err = QuizError;
     fn from_str(quiz_str: &str) -> Result<Self, Self::Err> {
         // split the quiz by the '---' separator between config and quiz
-        let (config_str, quiz_text) = match quiz_str.split_once("\n---") {
+        let (config_str, quiz_text) = match quiz_str
+            .trim_start_matches("---") // ignore any starting '---' prefixes (for empty config or
+            // people who are used to yaml
+            .split_once("\n---") // split at yaml-like header end
+        {
             Some((cfg, qz)) => (cfg, qz),
-            None => ("", &quiz_str[..]),
+            // again, ignore '---' at the start of the quiz for people who have empty config
+            None => ("", quiz_str[..].trim_start_matches("---")),
         };
 
         // parse the changes to default config
@@ -686,4 +695,472 @@ fn shuffle<T>(vec: &mut [T]) {
 
 fn rand() -> usize {
     RandomState::new().build_hasher().finish() as usize
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_empty() {
+        let res = Config::parse_str(&Config::default(), "").expect("empty config should parse");
+        let expected = Config::default();
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_missing_delimiter() {
+        let input = "value: 1";
+
+        let res = Config::parse_str(&Config::default(), input).expect_err("should err with missing delimiter");
+        let expected = ConfigError {
+            kind: ConfigErrorKind::MissingDelimiter,
+            context: input.to_owned(),
+            lines_parsed: 0,
+        };
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_invalid_option() {
+        let res = Config::parse_str(&Config::default(), ";not-an-option").expect_err("should err with invalid option");
+        let expected = ConfigError {
+            kind: ConfigErrorKind::InvalidOption,
+            context: "notanoption".to_owned(),
+            lines_parsed: 0,
+        };
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_invalid_value_float() {
+        let res = Config::parse_str(&Config::default(), ";value: false").expect_err("should err with invalid value");
+        let expected = ConfigError {
+            kind: ConfigErrorKind::InvalidValue("false".parse::<f32>().expect_err("can't parse float from 'false'").into()),
+            context: "false".to_owned(),
+            lines_parsed: 0,
+        };
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_invalid_value_bool() {
+        let res = Config::parse_str(&Config::default(), ";tutorial: 10").expect_err("should err with invalid value");
+        let expected = ConfigError {
+            kind: ConfigErrorKind::InvalidValue("10".parse::<bool>().expect_err("can't parse bool from '10'").into()),
+            context: "10".to_owned(),
+            lines_parsed: 0,
+        };
+        assert_eq!(res, expected)
+    }
+
+    //#[test]
+    // there are no int options right now
+    fn config_invalid_value_int() {
+        let res = Config::parse_str(&Config::default(), ";something-that's-int: false").expect_err("should err with invalid value");
+        let expected = ConfigError {
+            kind: ConfigErrorKind::InvalidValue("false".parse::<i32>().expect_err("can't parse int from 'false'").into()),
+            context: "false".to_owned(),
+            lines_parsed: 0,
+        };
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_comment() {
+        let res = Config::parse_str(&Config::default(), "# this is a comment").expect("comment-only config should parse");
+        let expected = Config::default();
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_opt_ignore_separation() {
+        let res = Config::parse_str(&Config::default(), "; v a-l_uE :1.5").expect("value config option should parse");
+
+        let mut expected = Config::default();
+        expected.value = 1.5;
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_opt_value() {
+        let res = Config::parse_str(&Config::default(), "; value: 1.5").expect("value config option should parse");
+
+        let mut expected = Config::default();
+        expected.value = 1.5;
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_opt_tutorial() {
+        let res = Config::parse_str(&Config::default(), "; tutorial: false").expect("tutorial config option should parse");
+
+        let mut expected = Config::default();
+        expected.tutorial = false;
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn config_all() {
+        let res = Config::parse_str(&Config::default(), "\
+            #comment
+            ;ordered: false
+            ;case-sensitive: true
+            ;ordered-answers: true
+            ;value: 1.2
+            ;tutorial: false
+        ").expect("all config options should parse");
+
+        let expected = Config{
+            ordered: false,
+            case_sensitive: true,
+            ordered_answers: true,
+            value: 1.2,
+            tutorial: false,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_empty() {
+        let res = Question::parse_str(&Config::default(), "").expect_err("empty question should err with only config");
+        
+        let expected = QuestionError {
+            kind: QuestionErrorKind::OnlyConfig,
+            lines_parsed: 0,
+            context: "".to_owned(),
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_only_config() {
+        let res = Question::parse_str(&Config::default(), ";value: 0\n;tutorial: false\n#comment\n").expect_err("config-only question should err with only config");
+        
+        let expected = QuestionError {
+            kind: QuestionErrorKind::OnlyConfig,
+            lines_parsed: 3,
+            context: "".to_owned(),
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_config_error() {
+        let inputs = &[
+            "#comment\nvalue: missing-delimiter\n? question\n",
+            ";invalid-option\n? question\n",
+            ";value: invalid-value\n? question\n",
+        ];
+
+        for input in inputs {
+            let res = Question::parse_str(&Config::default(), input).expect_err("invalid config should err with ConfigError");
+
+            let config_err = Config::parse_str(&Config::default(), input).expect_err("config should err");
+            
+            let expected = QuestionError {
+                lines_parsed: config_err.lines_parsed,
+                kind: QuestionErrorKind::ConfigError(config_err),
+                context: "question".to_owned(),
+            };
+
+            assert_eq!(res, expected)
+        }
+    }
+
+    #[test]
+    fn question_missing_delimiter() {
+        let res = Question::parse_str(&Config::default(), "question\n").expect_err("`?`-less question should err with missing delimiter");
+        
+        let expected = QuestionError {
+            kind: QuestionErrorKind::MissingDelimiter,
+            lines_parsed: 0,
+            context: "".to_owned(),
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_no_answers() {
+        let res = Question::parse_str(&Config::default(), "?question\n").expect_err("answerless question should err with no correct answer");
+        
+        let expected = QuestionError {
+            kind: QuestionErrorKind::NoCorrectAnswer,
+            lines_parsed: 0,
+            context: "question".to_owned(),
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_no_correct_answer() {
+        let res = Question::parse_str(&Config::default(), "?question\n- inc-answer\n").expect_err("correct-answer-less question should err with no correct answer");
+        
+        let expected = QuestionError {
+            kind: QuestionErrorKind::NoCorrectAnswer,
+            lines_parsed: 0,
+            context: "question".to_owned(),
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_typed() {
+        let res = Question::parse_str(&Config::default(), "?question\n+answer\n").expect("typed-answer question should parse");
+        
+        let expected = Question {
+            title: "question".to_owned(),
+            config: Config::default(),
+            answers: vec![Answer::Correct("answer".to_owned())],
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_multiple_choice() {
+        let res = Question::parse_str(&Config::default(), "?question\n+answer\n-incorrect\n-also incorrect").expect("multiple-choice question should parse");
+        
+        let expected = Question {
+            title: "question".to_owned(),
+            config: Config::default(),
+            answers: vec![
+                Answer::Correct("answer".to_owned()),
+                Answer::Incorrect("incorrect".to_owned()),
+                Answer::Incorrect("also incorrect".to_owned()),
+            ],
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn question_multiple_answer() {
+        let res = Question::parse_str(&Config::default(), "?question\n+answer\n-incorrect\n+also correct").expect("multiple-answer question should parse");
+        
+        let expected = Question {
+            title: "question".to_owned(),
+            config: Config::default(),
+            answers: vec![
+                Answer::Correct("answer".to_owned()),
+                Answer::Incorrect("incorrect".to_owned()),
+                Answer::Correct("also correct".to_owned()),
+            ],
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_empty() {
+        let res: Quiz = "".parse().expect("empty quiz should parse");
+        
+        let expected = Quiz {
+            config: Config::default(),
+            questions: vec![],
+            total_score: 0.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_config_empty() {
+        let res: Quiz = "---".parse().expect("quiz with empty config should parse");
+        
+        let expected = Quiz {
+            config: Config::default(),
+            questions: vec![],
+            total_score: 0.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_config_only() {
+        let res: Quiz = ";value: 2\n;tutorial: false\n---".parse().expect("config-only quiz should parse");
+        
+        let expected = Quiz {
+            config: Config {
+                value: 2.0,
+                tutorial: false,
+                ..Default::default()
+            },
+            questions: vec![],
+            total_score: 0.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_single_question() {
+        let res: Quiz = "?question\n+answer".parse().expect("quiz with questions should parse");
+        
+        let expected = Quiz {
+            config: Config::default(),
+            questions: vec![Question {
+                title: "question".to_owned(),
+                answers: vec![Answer::Correct("answer".to_owned())],
+                config: Config::default(),
+            }],
+            total_score: 1.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_single_question_with_config() {
+        let res: Quiz = ";value: 2\n?question\n+answer".parse().expect("quiz with questions should parse");
+        
+        let expected = Quiz {
+            config: Config::default(),
+            questions: vec![Question {
+                title: "question".to_owned(),
+                answers: vec![Answer::Correct("answer".to_owned())],
+                config: Config {
+                    value: 2.0,
+                    ..Default::default()
+                }
+            }],
+            total_score: 2.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_multiple_questions() {
+        let res: Quiz = "?question\n+answer\n\n?question2\n+answer\n-incorrect".parse().expect("quiz with questions should parse");
+        
+        let expected = Quiz {
+            config: Config::default(),
+            questions: vec![
+                Question {
+                    title: "question".to_owned(),
+                    answers: vec![Answer::Correct("answer".to_owned())],
+                    config: Config::default(),
+                },
+                Question {
+                    title: "question2".to_owned(),
+                    answers: vec![
+                        Answer::Correct("answer".to_owned()),
+                        Answer::Incorrect("incorrect".to_owned()),
+                    ],
+                    config: Config::default(),
+                },
+            ],
+            total_score: 2.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_multiple_questions_with_config() {
+        let res: Quiz = ";ordered_answers:true\n?question\n+answer\n\n;value:3\n?question2\n+answer\n-incorrect".parse().expect("quiz with questions with config should parse");
+        
+        let expected = Quiz {
+            config: Config::default(),
+            questions: vec![
+                Question {
+                    title: "question".to_owned(),
+                    answers: vec![Answer::Correct("answer".to_owned())],
+                    config: Config {
+                        ordered_answers: true,
+                        ..Default::default()
+                    }
+                },
+                Question {
+                    title: "question2".to_owned(),
+                    answers: vec![
+                        Answer::Correct("answer".to_owned()),
+                        Answer::Incorrect("incorrect".to_owned()),
+                    ],
+                    config: Config {
+                        value: 3.0,
+                        ..Default::default()
+                    }
+                },
+            ],
+            total_score: 4.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_config_and_multiple_questions_with_config() {
+        let res: Quiz = ";tutorial:false\n---\n;ordered_answers:true\n?question\n+answer\n\n;value:3\n?question2\n+answer\n-incorrect".parse().expect("quiz with questions with config should parse");
+        
+        let expected = Quiz {
+            config: Config {
+                tutorial: false,
+                ..Default::default()
+            },
+            questions: vec![
+                Question {
+                    title: "question".to_owned(),
+                    answers: vec![Answer::Correct("answer".to_owned())],
+                    config: Config {
+                        ordered_answers: true,
+                        tutorial: false,
+                        ..Default::default()
+                    }
+                },
+                Question {
+                    title: "question2".to_owned(),
+                    answers: vec![
+                        Answer::Correct("answer".to_owned()),
+                        Answer::Incorrect("incorrect".to_owned()),
+                    ],
+                    config: Config {
+                        value: 3.0,
+                        tutorial: false,
+                        ..Default::default()
+                    }
+                },
+            ],
+            total_score: 4.0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_config_error() {
+        let res: QuizError = "tutorial:false\n---\n;ordered_answers:true\n?question\n+answer\n\n;value:3\n?question2\n+answer\n-incorrect".parse::<Quiz>()
+            .expect_err("quiz with invalid file-config should err with config error");
+        
+        let expected = QuizError {
+            kind: QuizErrorKind::ConfigError(Config::parse_str(&Config::default(), "tutorial:false").expect_err("invalid config should error")),
+            lines_parsed: 0,
+        };
+
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn quiz_question_error() {
+        let res: QuizError = ";tutorial:false\n---\n;ordered_answers:true\n?question\n+answer\n\n;value:3\nquestion2\n+answer\n-incorrect".parse::<Quiz>()
+            .expect_err("quiz with invalid question should err with question error");
+        
+        let expected = QuizError {
+            kind: QuizErrorKind::QuestionError(Question::parse_str(&Config::default(), ";value:3\nquestion2\n+answer\n-incorrect").expect_err("invalid question should error")),
+            lines_parsed: 7,
+        };
+
+        assert_eq!(res, expected)
+    }
 }

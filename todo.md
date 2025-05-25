@@ -6,3 +6,7 @@
 # Future Tasks
 - Tons of Documentation
 - Bug Hunting
+- Binary/Precompiled Quizzes
+    - Allow quizzes to be compiled into the Quiz object ahead of time and 
+    printed into a file (careful byte-order) as binary to be read by the
+    quiz taker at runtime (hides answers / more secure, very dumbly though)
