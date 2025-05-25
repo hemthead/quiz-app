@@ -1,6 +1,18 @@
 use std::io::{self, Write, stdin, stdout};
 
+use std::cmp;
+
 use std::hash::{BuildHasher, Hasher, RandomState};
+
+/* consider doing something like this
+enum ConfigValue {
+    F32(String),
+    Bool(String),
+}
+impl ConfigValue {
+    fn parse
+}
+*/
 
 #[derive(Debug)]
 pub enum ConfigValueParseError {
@@ -8,6 +20,26 @@ pub enum ConfigValueParseError {
     ParseFloatError(std::num::ParseFloatError),
     ParseBoolError(std::str::ParseBoolError),
 }
+impl std::fmt::Display for ConfigValueParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ParseIntError(e) => write!(f, "{e}"),
+            Self::ParseFloatError(e) => write!(f, "{e}"),
+            Self::ParseBoolError(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for ConfigValueParseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::ParseFloatError(e) => e,
+            Self::ParseIntError(e) => e,
+            Self::ParseBoolError(e) => e,
+        })
+    }
+}
+
 impl From<std::num::ParseIntError> for ConfigValueParseError {
     fn from(value: std::num::ParseIntError) -> Self {
         Self::ParseIntError(value)
@@ -25,7 +57,34 @@ impl From<std::str::ParseBoolError> for ConfigValueParseError {
 }
 
 #[derive(Debug)]
-pub enum ConfigErr {
+pub struct ConfigError {
+    /// the string that failed to parse
+    context: String,
+    /// how many lines of config were parsed before this error came up
+    lines_parsed: usize,
+    /// what kind of error this is 
+    kind: ConfigErrorKind,
+}
+
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "failed to parse '{0}': {1}", self.context, self.kind)
+    }
+}
+
+impl std::error::Error for ConfigError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match &self.kind {
+            ConfigErrorKind::InvalidValue(err) => {
+                err.source()
+            },
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ConfigErrorKind {
     /// The option specified in the config is invalid
     InvalidOption,
     /// The value for the config option is invalid
@@ -33,24 +92,20 @@ pub enum ConfigErr {
     /// The comment/config is missing an appropriate delimiter (`;`, `:`, or `#`)
     MissingDelimiter,
 }
-impl From<ConfigValueParseError> for ConfigErr {
+
+impl std::fmt::Display for ConfigErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidOption => write!(f, "invalid config option"),
+            Self::MissingDelimiter => write!(f, "missing `;` delimiter"),
+            Self::InvalidValue(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl From<ConfigValueParseError> for ConfigErrorKind {
     fn from(value: ConfigValueParseError) -> Self {
-        ConfigErr::InvalidValue(value)
-    }
-}
-impl From<std::num::ParseIntError> for ConfigErr {
-    fn from(value: std::num::ParseIntError) -> Self {
-        Self::InvalidValue(value.into())
-    }
-}
-impl From<std::num::ParseFloatError> for ConfigErr {
-    fn from(value: std::num::ParseFloatError) -> Self {
-        Self::InvalidValue(value.into())
-    }
-}
-impl From<std::str::ParseBoolError> for ConfigErr {
-    fn from(value: std::str::ParseBoolError) -> Self {
-        Self::InvalidValue(value.into())
+        ConfigErrorKind::InvalidValue(value)
     }
 }
 
@@ -75,13 +130,28 @@ impl std::default::Default for Config {
 }
 
 impl Config {
-    fn parse_str(base_config: &Config, config_str: &str) -> Result<Self, ConfigErr> {
+    fn convert_parsed<T>(parsed: Result<T, ConfigValueParseError>, value: String, lines_parsed: usize) -> Result<T, ConfigError> {
+        match parsed {
+            Err(e) => return Err(ConfigError{
+                kind: ConfigErrorKind::from(e),
+                context: value,
+                lines_parsed,
+            }),
+            Ok(v) => Ok(v),
+        }
+    }
+
+    fn parse_str(base_config: &Config, config_str: &str) -> Result<Self, ConfigError> {
         let mut config = base_config.clone();
 
-        for cfg in config_str.lines().map(|l| l.trim()) {
+        for (line_num, cfg) in config_str.lines().map(|l| l.trim()).enumerate() {
             if cfg.starts_with('#') || cfg.is_empty() { continue; } // skip comments and blanks
             
-            if !cfg.starts_with(';') { return Err(ConfigErr::MissingDelimiter) }
+            if !cfg.starts_with(';') { return Err(ConfigError{
+                kind: ConfigErrorKind::MissingDelimiter,
+                lines_parsed: line_num,
+                context: cfg.to_owned(),
+            })}
 
             let (name, value) = match cfg.split_once(':') {
                 Some(t) => t,
@@ -95,12 +165,25 @@ impl Config {
             let value = value.trim().to_lowercase();
 
             match &name[..] {
-                "value" => config.value = value.parse()?,
-                "casesensitive" => config.case_sensitive = value.parse()?,
-                "ordered" => config.ordered = value.parse()?,
-                "orderedanswers" => config.ordered_answers = value.parse()?,
-                "tutorial" => config.tutorial = value.parse()?,
-                _ => return Err(ConfigErr::InvalidOption),
+ //                "value" => config.value = match value.parse() {
+ //                    Err(e) => return Err(ConfigError{
+ //                        kind: ConfigErrorKind::from(e),
+ //                        context: value,
+ //                        lines_parsed: line_num,
+ //                    }),
+ //                    Ok(v) => v,
+ //                },
+                // Ok, we're gonna pull an ugly, but this lets us add context so, *shrug*
+                "value" => config.value = Self::convert_parsed(value.parse::<f32>().map_err(|e| e.into()), value, line_num)?,
+                "casesensitive" => config.case_sensitive = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
+                "ordered" => config.ordered = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
+                "orderedanswers" => config.ordered_answers = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
+                "tutorial" => config.tutorial = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
+                _ => return Err(ConfigError { 
+                    kind: ConfigErrorKind::InvalidOption,
+                    lines_parsed: line_num,
+                    context: name,
+                }),
             };
         };
 
@@ -108,7 +191,7 @@ impl Config {
     }
 }
 impl std::str::FromStr for Config {
-    type Err = ConfigErr;
+    type Err = ConfigError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Config::parse_str(&Config::default(), s)
     }
@@ -137,53 +220,126 @@ impl Question {
 }
 
 #[derive(Debug)]
-pub enum QuestionErr {
+pub struct QuestionError {
+    kind: QuestionErrorKind,
+    lines_parsed: usize,
+    context: String,
+}
+
+impl std::fmt::Display for QuestionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "failed to parse question '{0}': {1}", self.context, self.kind)
+    }
+}
+
+impl std::error::Error for QuestionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match &self.kind {
+            QuestionErrorKind::ConfigError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum QuestionErrorKind {
     /// No `?` delimiter was found marking the start of a question
     /// This may be either a comment block or improperly formmated question
     MissingDelimiter,
-    ConfigErr(ConfigErr),
+    ConfigError(ConfigError),
     /// Question has no correct answer
     NoCorrectAnswer,
     /// There is only config/comments, this is likely a comment block
     OnlyConfig,
 }
-impl From<ConfigErr> for QuestionErr {
-    fn from(value: ConfigErr) -> Self {
-        QuestionErr::ConfigErr(value)
+
+impl std::fmt::Display for QuestionErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingDelimiter => write!(f, "missing `?` delimiter before question"),
+            Self::ConfigError(e) => write!(f, "{e}"),
+            Self::NoCorrectAnswer => write!(f, "no correct answer"),
+            Self::OnlyConfig => write!(f, "only config (likely a comment)"),
+        }
+    }
+}
+
+fn to_context_string(s: &str) -> String {
+    let max_len = 32;
+    let indx = cmp::min(max_len,
+        cmp::min(
+            s.find('\n').unwrap_or(std::usize::MAX),
+            s.find('\r').unwrap_or(std::usize::MAX),
+        ),
+    );
+
+    if let Some(substr) = s.get(..indx) {
+        substr.to_owned()
+    } else {
+        s[..].to_owned()
     }
 }
 
 impl Question {
-    fn parse_str(base_config: &Config, q_text: &str) -> Result<Self, QuestionErr> {
+    fn parse_str(base_config: &Config, q_text: &str) -> Result<Self, QuestionError> {
         let mut question = Question::new();
+
+        let mut lines_parsed = 0;
 
         // parse configs
         // split the quiz by the '?' separator between config and quiz
         let (config_str, q_text) = match q_text.split_once("\n?") {
-            Some((cfg, qz)) => (cfg, qz),
+            Some((cfg, qz)) => {
+                lines_parsed = 1; // to account for the newline we just got rid of
+                (cfg, qz.trim())
+            },
             None => {
                 // if text starts with `?` (no newline) it's just a question with no config
                 if q_text.starts_with('?') {
-                    ("", q_text[..].trim_start_matches('?'))
+                    ("", q_text[..].trim_start_matches('?').trim())
                 // else, everything is config/comment
                 } else {
-                    return Err(QuestionErr::OnlyConfig);
-                    //(&q_text[..], "") // questions MUST start with `?` marker
+                    (&q_text[..], "") // questions MUST start with `?` marker
                 }
             },
             //None => ("",q_text[..].trim_start_matches('?')), // makes comment blocks harder
         };
 
+        // set up the context to return when the user
+        let question_context = to_context_string(q_text);
+
         let config = Config::parse_str(base_config, config_str);
+
+        lines_parsed += config_str.matches('\n').count();
 
         question.config = match config {
             // if the config errors that it's missing a delimiter *and* we know there's no
             // question, there's a good chance that the quiz *meant* to put in a question (as
             // opposed to a comment block) and forgot the delimiter `?`
-            Err(ConfigErr::MissingDelimiter) if q_text.is_empty() => return Err(QuestionErr::MissingDelimiter),
+            Err(cfg_err) if matches!(cfg_err.kind, ConfigErrorKind::MissingDelimiter) && q_text.is_empty() => return Err(QuestionError {
+                kind: QuestionErrorKind::MissingDelimiter,
+                lines_parsed: cfg_err.lines_parsed, // we errored before the config was
+                // over, so it knows the actual line number
+                context: question_context, // show the start
+                // of the would-be question
+            }),
+            // propogate other errors
+            Err(cfg_err) => return Err(QuestionError {
+                lines_parsed: cfg_err.lines_parsed,
+                kind: QuestionErrorKind::ConfigError(cfg_err),
+                context: question_context,
+            }),
             // else just handle it normally
-            _ => config?,
+            Ok(cfg) => cfg,
         };
+
+        if q_text.is_empty() {
+            return Err(QuestionError {
+                kind: QuestionErrorKind::OnlyConfig,
+                context: to_context_string(q_text),
+                lines_parsed,
+            });
+        }
 
         // parse question
         // parse answers
@@ -211,8 +367,13 @@ impl Question {
             }
         }
 
+        // err if there are no correct answers
         if question.answers.iter().filter(|ans| matches!(ans, Answer::Correct(_))).count() == 0 {
-            return Err(QuestionErr::NoCorrectAnswer)
+            return Err(QuestionError {
+                kind: QuestionErrorKind::NoCorrectAnswer,
+                lines_parsed: lines_parsed,
+                context: question_context,
+            });
         }
 
         Ok(question)
@@ -220,7 +381,7 @@ impl Question {
 }
 
 impl std::str::FromStr for Question {
-    type Err = QuestionErr;
+    type Err = QuestionError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::parse_str(&Config::default(), s)
     }
@@ -238,23 +399,56 @@ pub struct Quiz {
 }
 
 #[derive(Debug)]
-pub enum QuizErr {
-    ConfigErr(ConfigErr),
-    QuestionErr(QuestionErr),
+pub struct QuizError {
+    kind: QuizErrorKind,
+    /// note that lines_parsed is *not* the current line / error line, it's the number of the last
+    /// line parsed (or index of the error line)
+    lines_parsed: usize,
 }
-impl From<ConfigErr> for QuizErr {
-    fn from(value: ConfigErr) -> Self {
-        QuizErr::ConfigErr(value)
+
+impl std::fmt::Display for QuizError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "error on line {0}: {1}", self.lines_parsed + 1, self.kind)
     }
 }
-impl From<QuestionErr> for QuizErr {
-    fn from(value: QuestionErr) -> Self {
-        QuizErr::QuestionErr(value)
+
+impl std::error::Error for QuizError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match &self.kind {
+            QuizErrorKind::ConfigError(e) => e,
+            QuizErrorKind::QuestionError(e) => e,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum QuizErrorKind {
+    ConfigError(ConfigError),
+    QuestionError(QuestionError),
+}
+impl std::fmt::Display for QuizErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ConfigError(e) => write!(f, "{e}"),
+            Self::QuestionError(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+
+impl From<ConfigError> for QuizErrorKind {
+    fn from(value: ConfigError) -> Self {
+        QuizErrorKind::ConfigError(value)
+    }
+}
+impl From<QuestionError> for QuizErrorKind {
+    fn from(value: QuestionError) -> Self {
+        QuizErrorKind::QuestionError(value)
     }
 }
 
 impl std::str::FromStr for Quiz {
-    type Err = QuizErr;
+    type Err = QuizError;
     fn from_str(quiz_str: &str) -> Result<Self, Self::Err> {
         // split the quiz by the '---' separator between config and quiz
         let (config_str, quiz_text) = match quiz_str.split_once("\n---") {
@@ -263,7 +457,13 @@ impl std::str::FromStr for Quiz {
         };
 
         // parse the changes to default config
-        let config = config_str.parse()?;
+        let config: Config = match config_str.parse() {
+            Ok(cfg) => cfg,
+            Err(cfg_err) => return Err(QuizError {
+                lines_parsed: cfg_err.lines_parsed,
+                kind: cfg_err.into(),
+            }),
+        };
 
         let mut quiz = Quiz {
             config,
@@ -271,19 +471,37 @@ impl std::str::FromStr for Quiz {
             total_score: 0.0,
         };
 
+        // count the newlines in the config
+        let mut lines_parsed = config_str.matches('\n').count();
+        if config_str.len() != 0 {
+            lines_parsed += 1; // add the line from `\n---`
+        }
+
         // Questions are separated by newlines
         for q_text in quiz_text
             .split("\r\n\r\n") // handle windows blank lines
             .flat_map(|text| text.split("\n\n")) // handle normal linux blank lines
-            .filter(|s| !s.is_empty()) {
-            quiz.questions.push(
+            {
+            if !q_text.is_empty() { 
                 match Question::parse_str(&quiz.config, q_text) {
-                    Err(QuestionErr::OnlyConfig) => continue, // don't push comment/config blocks
+                    Err(question_err) if matches!(question_err.kind, QuestionErrorKind::OnlyConfig) => (), // don't push comment/config blocks
                     // as questions
+
+                    Err(e) => return Err(QuizError {
+                        lines_parsed: lines_parsed + e.lines_parsed, // where the question is +
+                        // where the error is in the question
+                        kind: QuizErrorKind::QuestionError(e),
+                    }),
                     
-                    other => other?, // else just return errors / add the question
+                    Ok(question) => quiz.questions.push(question), // else just return errors / add the question
                 }
-            );
+            }
+
+            // 2 for the two newlines before each question-block + the newlines in the question
+            lines_parsed += 2 + q_text.matches('\n').count();
+            if q_text.is_empty() { // account for blank lines
+                //lines_parsed += 1;
+            }
         }
 
         // add up the total score of all questions
@@ -368,7 +586,7 @@ impl Quiz {
 
                 let mut ans = match &question.answers[0] {
                     Answer::Correct(ans) => ans,
-                    Answer::Incorrect(ans) => unreachable!(), // this question would fail to parse
+                    Answer::Incorrect(_) => unreachable!(), // this question would fail to parse
                     // with `NoCorrectAnswer`
                 }.to_owned();
 

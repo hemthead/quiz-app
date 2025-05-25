@@ -1,7 +1,7 @@
 # Active Tasks
-- Add location / context to errors
 - Default values for config options (typing `;case-sensitive` would set the default value)
-- Interface Tweaks
+- more config options
+    - show-answer: shows correct answer after user submission
 
 # Future Tasks
 - Tons of Documentation

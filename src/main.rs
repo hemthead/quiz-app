@@ -37,7 +37,7 @@ fn main() -> ExitCode {
     let quiz: Quiz = match quiz_str.parse() {
         Ok(quiz) => quiz,
         Err(e) => {
-            eprintln!("Could not parse quiz: {e:?}");
+            eprintln!("Could not parse quiz: {e}");
             return confirm_exit(ExitCode::FAILURE);
         }
     };
@@ -45,7 +45,7 @@ fn main() -> ExitCode {
     let score = match quiz.take() {
         Ok(score) => score,
         Err(e) => {
-            eprintln!("Could not take quiz: {e:?}");
+            eprintln!("Could not take quiz: {e}");
             return confirm_exit(ExitCode::FAILURE);
         }
     };
