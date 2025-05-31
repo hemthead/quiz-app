@@ -1,5 +1,6 @@
 # Active Tasks
 - Default values for config options (typing `;case-sensitive` would set the default value)
+- Catch and display _all_ errors at compile-time
 - more config options
     - ?justified: ask user for justification, log to ...
     - ?ask-inverse: ask user the question to their answer later

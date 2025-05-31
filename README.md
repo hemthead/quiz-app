@@ -44,21 +44,31 @@ program.
 
 ### Developing Quizzes
 
-The template at `examples/template.qz` has everything you need to get a grip on the
+The templates/tutorials in `./examples/` have everything you need to get a grip on the
 configuration and development of custom quizzes. Don't hesistate to contact me if
 something's not immediately clear.
 
-The config language is rather basic and the file structure consits of the following:
-- Optional file-wide config options, followed by a line consisting of `---` (think yaml)
-- Questions formatted as such:
-    - Config options and comments; config starting with `;` and comments starting with `#`
-    - Followed by a line starting with `?` that begins the question. The question spans 
-    until
-    - One of the answer identifiers is met on a new line: `-` for incorrect answers and 
-    `+` for correct answers
+The config language is rather basic and the quiz structure consits of questions, formatted
+as follows:
 
-All config options are explained in the template file, as well as multiple examples of how
-to format questions.
+```
+? Question
++ Correct Answer
+- Incorrect Answer
+
+? Next Question
++ Correct Answer 1
++ Correct Answer 2
+
+? Last Question
++ type this answer
+```
+
+To create a quiz, open your preferred text-editor and get started with the above or
+something from the `examples/` directory.
+
+All config options are explained in the tutorial series, as well as multiple examples of
+how to format questions.
 
 #### Quiz Errors
 
@@ -84,8 +94,9 @@ all the errors so you can fix them at once, but that's for the future, sorry!
 ### Taking Quizzes
 
 Taking quizzes is as simple as running the executable with the path to the quiz's file as
-the first argument (ex. `$ ./quiz_app examples/template.qz` from a shell in this 
-directory).
+the first argument (ex. `$ ./quiz-app examples/basic-template.qz` from a shell in this 
+directory). Quizzes do **NOT** have to be .qz files, all that matters is that they have
+the correct text in them. I just use .qz as a shorthand to show the type of file.
 
 ## Issues
 
