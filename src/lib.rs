@@ -116,6 +116,9 @@ pub struct Config {
     ordered: bool,
     ordered_answers: bool,
     tutorial: bool,
+    show_answer: bool,
+    show_value: bool,
+    show_quiz_info: bool,
 }
 impl std::default::Default for Config {
     fn default() -> Self {
@@ -125,12 +128,28 @@ impl std::default::Default for Config {
             ordered: true,
             ordered_answers: true,
             tutorial: true,
+            show_answer: true,
+            show_value: true,
+            show_quiz_info: true,
         }
     }
 }
 
 impl Config {
-    fn convert_parsed<T>(parsed: Result<T, ConfigValueParseError>, value: String, lines_parsed: usize) -> Result<T, ConfigError> {
+    /// Parse a `String` into a value for use in a `Config`.
+    ///
+    /// Desired type must have a string-parsing error that implements
+    /// `Into<ConfigValueParseError>`.
+    fn parse_val<T> (value: String, lines_parsed: usize) -> Result<T, ConfigError>
+    where 
+        // require that the desired type can parse from a string and its parse error can convert
+        // into ours
+        T: std::str::FromStr<Err: Into<ConfigValueParseError>>
+    {
+        // parse the value into the desired type and convert any errors into our parse errors
+        let parsed = value.parse().map_err(|e| Into::<ConfigValueParseError>::into(e));
+
+        // convert parse errors into fully-fledged ConfigErrors, passthrough values
         match parsed {
             Err(e) => return Err(ConfigError{
                 kind: ConfigErrorKind::from(e),
@@ -173,12 +192,20 @@ impl Config {
  //                    }),
  //                    Ok(v) => v,
  //                },
-                // Ok, we're gonna pull an ugly, but this lets us add context so, *shrug*
-                "value" => config.value = Self::convert_parsed(value.parse::<f32>().map_err(|e| e.into()), value, line_num)?,
-                "casesensitive" => config.case_sensitive = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
-                "ordered" => config.ordered = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
-                "orderedanswers" => config.ordered_answers = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
-                "tutorial" => config.tutorial = Self::convert_parsed(value.parse::<bool>().map_err(|e| e.into()), value, line_num)?,
+
+                // f32 options
+                "value" => config.value = Self::parse_val(value, line_num)?,
+
+                // boolean options
+                "casesensitive" => config.case_sensitive = Self::parse_val(value, line_num)?,
+                "ordered" => config.ordered = Self::parse_val(value, line_num)?,
+                "orderedanswers" => config.ordered_answers = Self::parse_val(value, line_num)?,
+                "tutorial" => config.tutorial = Self::parse_val(value, line_num)?,
+                "showanswer" => config.show_answer = Self::parse_val(value, line_num)?,
+                "showvalue" => config.show_value = Self::parse_val(value, line_num)?,
+                "showquizinfo" => config.show_quiz_info = Self::parse_val(value, line_num)?,
+
+                // invalid options
                 _ => return Err(ConfigError { 
                     kind: ConfigErrorKind::InvalidOption,
                     lines_parsed: line_num,
@@ -194,6 +221,31 @@ impl std::str::FromStr for Config {
     type Err = ConfigError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Config::parse_str(&Config::default(), s)
+    }
+}
+
+impl std::fmt::Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{\n    \
+            value: {0:.0}\n    \
+            case-sensitive: {1}\n    \
+            ordered: {2}\n    \
+            ordered-answers: {3}\n    \
+            tutorial: {4}\n    \
+            show-answer: {5}\n    \
+            show-value: {6}\n    \
+            show-quiz_info: {7}\n\
+            }}",
+
+            self.value,
+            self.case_sensitive,
+            self.ordered,
+            self.ordered_answers,
+            self.tutorial,
+            self.show_answer,
+            self.show_value,
+            self.show_quiz_info,
+        )
     }
 }
 
@@ -550,6 +602,18 @@ impl Quiz {
             println!("Your quiz starts now!\n---");
         }
 
+        if self.config.show_quiz_info {
+            println!("\
+                Total Points: {0}\n\
+                Total Questions: {1}\n\
+                Base Config: {2} (may change per question)\n\
+            ",
+                self.total_score,
+                self.questions.len(),
+                self.config,
+            )
+        }
+
         let mut score = 0.0;
 
         let mut questions = Vec::new();
@@ -573,8 +637,15 @@ impl Quiz {
         questions.append(&mut ordered_questions);
 
         for question in questions {
+            println!();
+
+            // show question value
+            if question.config.show_value {
+                println!("For {0:.0} pt(s):", question.config.value);
+            }
+
             // ask question
-            println!("\n{0}", question.title);
+            println!("{0}", question.title);
 
             // prep user input
             let mut user_in = String::new();
@@ -604,8 +675,18 @@ impl Quiz {
                     ans = ans.to_lowercase();
                 }
 
-                if ans == user_answer.trim() {
+                let is_correct = ans == user_answer.trim();
+
+                if is_correct {
                     score += question.config.value;
+                }
+
+                if question.config.show_answer {
+                    if is_correct {
+                        println!("Correct!\n");
+                    } else {
+                        println!("Correct Answer: '{ans}'\n");
+                    }
                 }
 
                 continue;
@@ -663,8 +744,23 @@ impl Quiz {
                 input.read_line(&mut user_in)?;
             }
 
-            if user_answers == correct_answer_indicies {
+            let is_correct = user_answers == correct_answer_indicies;
+
+            if is_correct {
                 score += question.config.value;
+            }
+
+            if question.config.show_answer {
+                if is_correct {
+                    println!("Correct!");
+                } else {
+                    println!("Correct Answer{0}: {1}\n", if single_correct {""} else {"s"}, correct_answer_indicies.iter()
+                        .map(|e| e.to_string())
+                        .collect::<Vec<String>>() // could you iter.intersprese, but didn't want to
+                        // use a String (instead of a &str)
+                        .join(", ")
+                    );
+                }
             }
 
             // BUNCHA PARTIAL CREDIT STUFF I DON'T CARE ABOUT RIGHT NOW
@@ -679,6 +775,9 @@ impl Quiz {
             //
             //}
         };
+
+        println!("\n\nQuiz finished!");
+        println!("Your score: {score:.0}/{0:.0} ({1:.0}%)", self.total_score, score*100.0/self.total_score);
 
         Ok(score)
     }
@@ -784,7 +883,7 @@ mod tests {
     }
 
     #[test]
-    fn config_opt_value() {
+    fn config_opt_f32() {
         let res = Config::parse_str(&Config::default(), "; value: 1.5").expect("value config option should parse");
 
         let mut expected = Config::default();
@@ -794,7 +893,7 @@ mod tests {
     }
 
     #[test]
-    fn config_opt_tutorial() {
+    fn config_opt_bool() {
         let res = Config::parse_str(&Config::default(), "; tutorial: false").expect("tutorial config option should parse");
 
         let mut expected = Config::default();
@@ -812,14 +911,22 @@ mod tests {
             ;ordered-answers: true
             ;value: 1.2
             ;tutorial: false
+            ;show-answer: false
+            ;show-value: false
+            ;show-quiz-info: false
         ").expect("all config options should parse");
 
+        // NOTE: make sure these are all different from the default; we need to make sure they're
+        // parsing correctly, not defaulting correctly.
         let expected = Config{
-            ordered: false,
-            case_sensitive: true,
-            ordered_answers: true,
             value: 1.2,
+            case_sensitive: true,
+            ordered: false,
+            ordered_answers: true,
             tutorial: false,
+            show_answer: false,
+            show_value: false,
+            show_quiz_info: false,
         };
 
         assert_eq!(res, expected)

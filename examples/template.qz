@@ -8,19 +8,24 @@
 # Config lines starting with `#` are treated as comments (comments are valid where config
 # is valid; i.e. not within questions)
 #
-# Config options consist of one or more words `directlyjoined`, `kebab-cased`, `snake_cased`, or
-# `space separated` (any of these are valid), followed by a value
+# Config options consist of one or more words `directlyjoined`, `kebab-cased`, 
+# `snake_cased`, or `space separated` (any or any combination of these are valid),
+# followed by a value
 #
 # CONFIG DICTIONARY
 # config: type [default] (description)
 #
-# tutorial: bool [true] (whether to present quiz-taking tutorial at start of quiz)
-# case-sensitive: bool [false] (whether answer is case-sensitive)
-# value: float [1.0] (point value of question)
+# value: float [1.0] (Point value of question)
+# case-sensitive: bool [false] (Whether answer is case-sensitive)
+# ordered: bool [true] (Whether the question be asked in order relative to other ordered
+#   questions; i.e. setting to false would randomize when this question is presented)
 # ordered-answers: bool [false] (Whether answers have set order; i.e. setting to false
 #   would randomize answer order when presented)
-# ordered: bool [true] (should the question be asked in order relative to other ordered
-#   questions; i.e. setting to false would randomize when this question is presented)
+# tutorial: bool [true] (Whether to present quiz-taking tutorial at start of quiz)
+# show-answer: bool [true] (Whether to show the correct answer after each question)
+# show-value: bool [true] (Whether to show the value of each question before answering)
+# show-quiz-info: bool [true] (Whether to show information about the quiz such as number
+#   of questions, total points, and file-level config)
 #
 # UNSUPPORTED CONFIG OPTIONS UNDER CONSIDERATION, please leave feedback!
 # justified: bool [false] (ask user for justification)
