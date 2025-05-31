@@ -42,16 +42,13 @@ fn main() -> ExitCode {
         }
     };
 
-    let score = match quiz.take() {
+    let _ = match quiz.take() {
         Ok(score) => score,
         Err(e) => {
             eprintln!("Could not take quiz: {e}");
             return confirm_exit(ExitCode::FAILURE);
         }
     };
-    
-    println!("\n\nQuiz finished!");
-    println!("Your score: {score:.0}/{0:.0} ({1:.0}%)", quiz.total_score, score*100.0/quiz.total_score);
     
     return confirm_exit(ExitCode::SUCCESS);
 }

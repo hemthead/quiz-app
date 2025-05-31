@@ -1,0 +1,111 @@
+# Welcome to the advanced tutorial.
+# Here, We'll be covering file-level config, as well as all the other
+# configuration options.
+
+# file-level configuration is separated from the questions by three minus signs
+# (`-`), like so: `---`. Before this separator is file-config, and after are the
+# questions and their specific config.
+
+# Any configuration in the space before the `---` will apply to all questions
+# unless those questions have clashing configuration (eg. a different value of
+# `case-sensitive`)
+
+# These two configuration options are special, they don't do anything to
+# questions
+#
+# `; tutorial: false` tells the app not to show the tutorial at the start of the
+# quiz.
+# `; show-quiz-info: true` tells the app to display the config and details of
+# the quiz
+; tutorial: false
+; show-quiz-info: true
+
+; ordered: false
+; case-sensitive: true
+
+# Now that we've set `ordered` to `false` and `case-sensitive` to `true`, every
+# question in the quiz will inherit those configuration options (i.e. every
+# question will have `ordered` set to `false` and `case-sensitive` set to `true`
+# unless they're specifically set in its configuration)
+
+# It's also allowed to put this `---` marker at the start of the file as well
+# as the end of the file-level config, if you are familiar with yaml or obsidian
+---
+
+# After the `---` marker, we can start writing the questions for our quiz
+
+? Question 1: What does the `ordered` configuration option do?
++ Determine whether a question should be asked in a set or random order
+- Determine whether a question's answer is case-sensitive
+- Determine whether or not the tutorial should be shown at the start of the quiz
+
+# Note that, because we set `case-sensitive` to `true` in the file-config, we
+# have to reset it if we want to change it to `false` for a specific question
+
+# Now, for this question, the user can type in "value", "VaLuE", etc. and the
+# answer will still be correct!
+
+; case-sensitive: false
+? Question 2: What is the name of the configuration option that sets a
+question's value?
++ VALUE
+
+# Now that we've covered all the features of the app, let's cover all the config
+# options.
+
+# COMMENTS
+#
+# Firstly, the configuration system is what handles comments, so comments are
+# valid wherever configuration is. The reason for this is that I couldn't as
+# easily do comments _inside_ questions because of the linebreak stuff. But that
+# might help explain where comments are valid.
+
+# NAMING
+#
+# Secondly, as a convenience, I built the configuration option system to ignore
+# case (`A` vs `a`), hyphens (`-`), spaces (` `), and underscores (`_`); each of
+# these are completely removed from the option identifier (the name). This means
+# that, for example, `case-sensitive`, `CaseSensitive`, `casesensitive`, `CASE
+# SENSITIVE`, `case_sensitive`, `CaSe-S ensitive`, etc. are all equivalent.
+#
+# The same does NOT apply to their values. `1.0` is not the same as `1 .0` and
+# you will receive an error. Luckily, their values are simple types that don't
+# benefit much from a system such as that anyway.
+
+# TYPES
+#
+# Speaking of values. There are a couple of different types that values can be.
+# Some configuration options expect a rational number (such as `value`), called
+# a `float`. Other configuration options expect a `true`/`false` value which is
+# called a `bool` (short for Boolean).
+#
+# It is necessary to know these types for the following dictionary of
+# configuration options.
+
+# CONFIGURATION OPTION DICTIONARY
+# 
+# The following is a dictionary of all the currently supported configuration
+# options. Each option is presented in the following format:
+#
+# OPTION_NAME: VALUE_TYPE [DEFAULT_VALUE] - DESCRIPTION
+#     CONTINUED_DESCRIPTION
+#
+# value: float [1.0] - The point value of the question.
+# case-sensitive: bool [true] - Whether the answer of the question is case
+#     sensitive.
+# ordered: bool [true] - Whether the question should be presented in the order
+#     written or, if false, should be presented in a random order (randomly
+#     ordered questions are placed at the start of the quiz and the `ordered`
+#     questions are placed in a block at the end).
+# ordered-answers: bool [false] - Whether the question's answers should be
+#     presented in the order written or, if false, randomly ordered. 
+# show-answer: bool [true] - Whether the question's correct answers should be
+#     revealed after the user submits an answer.
+# show-value: bool [true] - Whether the question's point value should be shown.
+# 
+# FILE-LEVEL-ONLY config options: (these options only affect the quiz itself)
+#
+# tutorial: bool [true] - Whether the quiz should be preceded by a tutorial.
+# show-quiz-info: bool [true] - Whether to precede the quiz with information
+#      about how it's configured. Shows the number of questions, total points,
+#      and file-level configuration.

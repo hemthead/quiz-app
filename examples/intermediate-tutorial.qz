@@ -1,0 +1,64 @@
+# Welcome to the intermediate tutorial, this tutorial will cover configuration
+# and some of the slightly more advanced features of the quiz-app.
+
+# To start, we'll cover a convenience for question-making: linewrapping.
+
+# As you type long questions, you may be dissatisfied with how long the lines
+# get. Linewrapping allows you to split your questions and answers into multiple
+# lines so that you can more easily see and edit them.
+#
+# As you make a question, insert a linebreak/newline anywhere in the text to
+# continue on the next line (as long as the first thing on the next line isn't
+# a plus (`+`) or minus (`-`) sign). When taking the quiz, the lines are
+# connected and a space is put between them, so make sure to not include any
+# spaces at the start or end of lines.
+
+? Here's an example question that is soooo long I felt the need to
+wrap it over onto the next line
++ You can do the exact same thing with answers. I'll wrap mine right here
+and continue on this line
+- The same applies to incorrect answers
+like this one
+
+# Now, we'll cover question config:
+
+# Before any question, you have the opportunity to add config that specifies how
+# it should be treated. For example, the `value` config option sets how many
+# points the question is worth. These config options should be placed on the
+# lines directly before the question. Let's see a simple example:
+
+; value: 2
+; show-answer: true
+? How are quizzes represented?
++ As simple, markdown-like text documents
+- As binary data
+
+# Ok, let's go over that last question:
+# 
+# See the lines beginning with a semicolon (`;`)? Those are the configuration
+# lines. Each one sets a configuration option for this question.
+#
+# As previously explained, `; value: 2` sets the point-value of the question to
+# 2 (from 1). `; show-answer: true` states that the correct answer of the
+# question should be shown after the quiz-taker submits their answer.
+
+
+# Let's look at another example:
+
+; case-sensitive: true
+; ordered: false
+? What is the proper abbreviation for the United States of America (case
+sensitive)
++ USA
+
+# Here, we've got a typed-answer question with two configuration options set:
+# `case-sensitive` and `ordered`. `; case-sensitive: true` tells the app that
+# the user's answer to the question MUST be typed with the same case as the
+# answer in the quiz (i.e. "usa" would be incorrect, "USA" would be correct).
+# `ordered: false` tells the app that this question should be placed randomly in
+# the quiz (i.e. this question may appear before the previously defined
+# question) *(See the advanced tutorial for details).
+
+# Now that you know how to better write questions and give them config, visit
+# the advanced tutorial for a list of all configuration options -- as well as
+# some even more advanced features!

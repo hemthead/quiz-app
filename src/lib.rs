@@ -234,7 +234,7 @@ impl std::fmt::Display for Config {
             tutorial: {4}\n    \
             show-answer: {5}\n    \
             show-value: {6}\n    \
-            show-quiz_info: {7}\n\
+            show-quiz-info: {7}\n\
             }}",
 
             self.value,

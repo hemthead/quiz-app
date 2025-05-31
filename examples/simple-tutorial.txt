@@ -1,0 +1,45 @@
+# Quizzes are represented as text files, and may have any file extension. This
+# quiz was created as a .txt for naming convenience, but .qz will be used for
+# the other templates and tutorials in this repository. Open/create the .qz
+# files with the same text editor (eg. notepad) that you use for .txt text files.
+
+# Lines that begin with this hash/pound symbol are comments, and will have no
+# effect on the quiz
+
+# Lines that begin with a question mark (`?`) start a question
+# Lines that begin with a plus sign (`+`) indicate a correct answer
+# Lines that begin with a minus sign (`-`) indicate an incorrect answer
+
+# After each question, you should have at least one fully empty/blank line so
+# that the app knows you're done writing the question
+
+? This is a question. when you take the quiz, this text and these answers will show
++ This is a correct answer
+- This is an incorrect answer
+
+# The last question was a multiple choice question, with only one answer
+# This next question will be multiple answer, as we'll have multiple correct
+# choices
+
+? What type of question do we get by putting multiple answers?
++ A multiple-answer question
++ A question that has more than one answer
+- A question that has only one answer
+
+# Finally, the last type of question is a typed-answer, we can indicate this
+# by putting only a single, correct answer.
+
+? The answer to this question is "the correct answer"
++ the correct answer
+
+? Is this a question?
++ Yes
+- No
+
+# Note how the two previous questions are separated by a blank line, the same
+# separation applies to comments such as this one (otherwise they'd be part of
+# the question)
+
+# By default, questions will show the correct answer after an answer is
+# submitted. If you would like to change this, please take a look at the more
+# advanced tutorials.
